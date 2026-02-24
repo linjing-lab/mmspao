@@ -1,0 +1,6 @@
+numpy>=1.26.4
+scanpy>=1.10.4
+scikit_learn>=1.7.1
+scipy>=1.15.3
+torch==2.1.0+cu121
+tqdm>=4.67.1
