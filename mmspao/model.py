@@ -109,3 +109,38 @@ class mmspao(torch.nn.Module):
                 print(f"Found resolution: {res:.2f} for {n_domains} domains")
                 return res
         return 1.0
+
+    def modularity(self, adata):
+        import igraph as ig
+        G_coo = adata.obsp['connectivities'].tocoo()
+        edges = list(zip(G_coo.row.tolist(), G_coo.col.tolist()))
+        weights = G_coo.data.tolist()
+        g = ig.Graph(n=adata.n_obs, edges=edges, directed=False)
+        g.es['weight'] = weights
+        membership = adata.obs['leiden'].astype(int).tolist()
+        mod = g.modularity(membership, weights='weight')
+        return mod
+    
+    def moran(self, adata, k=6):
+        import libpysal
+        from esda.moran import Moran
+        coords = adata.obsm['spatial']
+        labels = adata.obs['leiden'].astype(int).values
+        w = libpysal.weights.KNN.from_array(coords, k=k)
+        w.transform = 'r'
+        mi = Moran(labels, w)
+        return mi.I, mi.p_sim
+    
+    def contiguity(self, adata, k=6):
+        from sklearn.neighbors import NearestNeighbors
+        labels = adata.obs['leiden'].astype(int).values
+        coords = adata.obsm['spatial']
+        nbrs = NearestNeighbors(n_neighbors=k+1).fit(coords)
+        distances, indices = nbrs.kneighbors(coords)
+        same = 0
+        total = 0
+        for i, neigh in enumerate(indices):
+            for j in neigh[1:]:  # skip self
+                same += (labels[i] == labels[j])
+                total += 1
+        return same / total
